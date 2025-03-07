@@ -1,16 +1,20 @@
 const Conversation = require("../models/Conversation");
-const { generateContent } = require("../service/geminiService");
+const { generateContent, generateTitle } = require("../service/geminiService");
+
+exports.getConversations = async (req, res, next) => {
+  const conversations = await Conversation.find();
+  res.json(conversations);
+}
 
 exports.newConversation = async (req, res, next) => {
   const { prompt, model } = req.body;
   const content = await generateContent(prompt, model);
-  const conversation = new Conversation({
-    title: prompt,
-    model: model,
-    messages: [{role: "user", content: prompt}, {role: "assistant", content: content}]
-  });
+  const messages = [{role: "user", content: prompt}, {role: "assistant", content: content}];
+  const title = await generateTitle(messages);
+
+  const conversation = new Conversation({title, model, messages});
   await conversation.save();
-  res.json(conversation);
+  res.status(201).json(conversation);
 }
 
 exports.newMessage = async (req, res, next) => {
@@ -26,4 +30,10 @@ exports.newMessage = async (req, res, next) => {
   conversation.messages.push({role: "assistant", content: content});
   await conversation.save();
   res.json(conversation);
+}
+
+exports.deleteConversation = async (req, res, next) => {
+  const { id } = req.params;
+  await Conversation.findByIdAndDelete(id);
+  res.status(204).json({message: "Conversation deleted"});
 }
